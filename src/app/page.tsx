@@ -1,69 +1,10 @@
-import Image from "next/image";
-
-export default function Home() {
-  return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
-  );
-}
+"use client";
+import { useEffect, useState } from "react";
+import { FileText } from "lucide-react";
+import { FileUploader } from "@/app/components/FileUploader";
+import { ProcessingOverlay } from "@/app/components/ProcessingOverlay";
+import { InvoiceEditor } from "@/app/components/InvoiceEditor";
+import { ExportPanel } from "@/app/components/ExportPanel";
+import { errorMessage } from "@/lib/error-messages";
+import type { Invoice } from "@/types/invoice";
+export default function Home() { const [file, setFile] = useState<File | null>(null), [invoice, setInvoice] = useState<Invoice | null>(null), [error, setError] = useState(""), [loading, setLoading] = useState(false), [stage, setStage] = useState(0); useEffect(() => { if (!loading) return; const id = setInterval(() => setStage(s => s + 1), 1800); return () => clearInterval(id); }, [loading]); const extract = async () => { if (!file) return setError("Choose an invoice to start extraction."); setError(""); setLoading(true); setStage(0); try { const form = new FormData(); form.append("file", file); const response = await fetch("/api/extract", { method: "POST", body: form }); const body = await response.json(); if (!body.success) throw new Error(body.error?.code || "UNKNOWN"); setInvoice(body.data); } catch (e) { setError(errorMessage(e instanceof Error ? e.message : "UNKNOWN")); } finally { setLoading(false); } }; return <main className="app-shell"><header className="topbar"><div className="brand"><span className="brand-icon"><FileText size={19}/></span><span><strong>Invoice Extractor</strong><small>Invoices in, data out</small></span></div><div className="topbar-title">Upload, review & export</div></header><section className="hero"><h1>Turn invoices into editable data.</h1></section><section className="workspace"><article className="panel upload-panel"><div className="panel-heading"><span className="step">1</span><div><h2>Upload invoice</h2><p>Drag and drop, browse, or paste</p></div></div><FileUploader file={file} onChange={(f) => { setFile(f); setError(""); }} error={error}/><button disabled={!file || loading} onClick={extract} className="primary-button">Extract details</button>{loading && <ProcessingOverlay stage={stage}/>}</article><article className="panel review-panel"><div className="panel-heading"><span className="step">2</span><div><h2>Review details</h2><p>Check and edit extracted data</p></div></div>{invoice ? <InvoiceEditor invoice={invoice} onChange={setInvoice}/> : <div className="empty-panel"><FileText size={30}/><h3>Invoice details</h3><p>Extract an invoice to review its company, reference, totals, and line items.</p></div>}</article><article className="panel"><div className="panel-heading"><span className="step">3</span><div><h2>Export result</h2><p>Download your verified data</p></div></div><ExportPanel invoice={invoice}/></article></section></main>; }
